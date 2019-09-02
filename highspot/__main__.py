@@ -166,7 +166,7 @@ def userAddPlaylist(changes, original, valid_playlists):
 
         # Note that there is an upper bound, and we are not checking it here. For production code,
         # we would need a check for wrapping.
-        # We also ignore 'holes' due to removals. 
+        # We also ignore 'holes' due to removals.
 
         valid_playlists.sort(reverse=True)
 

@@ -3,7 +3,7 @@ Highspot code problem.
 
 ## App parameters
 
-highspot <input-file> <changes-file> <output-file>
+```highspot <input-file> <changes-file> <output-file>```
 
 - input-file: See ```mixtape.json``` 
 
