@@ -3,13 +3,19 @@ import argparse
 import json
 
 
-INVALID_PLAYLIST_DATA_STR = "The change data is not coherent. For example you are removing a playlist while also trying to add a song to that same playlist, or referencing a playlist that does not exist, etc."
-INVALID_SONG_DATA_STR = "The change data is not coherent. You are add a song to a new or existing playlist, and that song does not exist."
-INVALID_USER_DATA_STR = "The change data is not coherent. You are referencing a user in the change file that does not exist."
+INVALID_PLAYLIST_DATA_STR = """FAILED TO RUN: The change data is not coherent. For example you are removing a playlist 
+while also trying to add a song to that same playlist, or referencing a playlist that does not exist, etc."""
+
+INVALID_SONG_DATA_STR = """FAILED TO RUN: The change data is not coherent. You are adding a song to a new or existing 
+playlist, and that song does not exist."""
+
+INVALID_USER_DATA_STR = """FAILED TO RUN: The change data is not coherent. You are referencing a user in the change 
+file that does not exist."""
 
 
 class PlaylistValidationError(Exception):
-   """Raised when the playlist-remove and playlist-add-song changes are not coherent, or when a non-existent playlist is referenced."""
+   """Raised when the playlist-remove and playlist-add-song changes are not coherent,
+   or when a non-existent playlist is referenced."""
    pass
 
 class SongValidationError(Exception):
@@ -17,7 +23,7 @@ class SongValidationError(Exception):
    pass
 
 class UserValidationError(Exception):
-   """Raised when the user-add-playlist changes  reference a non-existent song."""
+   """Raised when the user-add-playlist changes reference a non-existent song."""
    pass
 
 
@@ -40,15 +46,28 @@ def setup_working_lists_from_changes_file(changes):
     change_list_songs = []          # List of songs referenced in the change file.
     change_list_users = []          # List of users referenced in the change file.
 
-    for obj in changes["playlist_add_song"]:
-        playlists_for_add_song.append(obj["playlist_id"])
-        change_list_songs.append(obj["song_id"])
+    if changes.get("playlist_add_song") is not None:
+        for obj in changes["playlist_add_song"]:
+            playlists_for_add_song.append(obj["playlist_id"])
+            change_list_songs.append(obj["song_id"])
 
-    for obj in changes["user_add_playlist"]:
-        change_list_users.append(obj["user_id"])
-        change_list_songs.extend(obj["song_ids"])
+    if changes.get("user_add_playlist") is not None:
+        for obj in changes["user_add_playlist"]:
+            change_list_users.append(obj["user_id"])
+            change_list_songs.extend(obj["song_ids"])
 
     return playlists_for_add_song, changes["playlist_remove"], change_list_songs, change_list_users
+
+
+def getCurrentList(input, key):
+
+    new_list = []
+
+    if input.get(key) is not None:
+        for obj in input[key]:
+            new_list.append(obj["id"])
+
+    return new_list
 
 
 def setup_working_lists_from_original_file(original):
@@ -57,14 +76,14 @@ def setup_working_lists_from_original_file(original):
     valid_songs = []        # List valid songs.
     valid_users = []        # List valid users.
 
-    for obj in original["playlists"]:
-        valid_playlists.append(obj["id"])
+    if original.get("playlists") is not None:
+        valid_playlists = getCurrentList(original, "playlists")
 
-    for obj in original["songs"]:
-        valid_songs.append(obj["id"])
+    if original.get("songs") is not None:
+        valid_songs = getCurrentList(original, "songs")
 
-    for obj in original["users"]:
-        valid_users.append(obj["id"])
+    if original.get("users") is not None:
+        valid_users = getCurrentList(original, "users")
 
     return valid_playlists, valid_songs, valid_users
 
@@ -73,7 +92,8 @@ def validate_change_data(changes, original):
 
     # Setup lists used for validation. Some of these are used to do work later.
 
-    playlists_for_add_song, playlists_to_be_removed, change_list_songs, change_list_users = setup_working_lists_from_changes_file(changes)
+    playlists_for_add_song, playlists_to_be_removed, change_list_songs, change_list_users \
+        = setup_working_lists_from_changes_file(changes)
 
     valid_playlists, valid_songs, valid_users = setup_working_lists_from_original_file(original)
 
@@ -103,7 +123,7 @@ def validate_change_data(changes, original):
 
     for entry in change_list_users:
         if entry not in valid_users:
-            raise SongValidationError
+            raise UserValidationError
 
     return playlists_for_add_song, playlists_to_be_removed, valid_playlists
 
@@ -160,7 +180,12 @@ def playlistUpdates(playlists_for_add_song, playlists_to_be_removed, changes, or
     return original
 
 
-def userAddPlaylist(changes, original, valid_playlists):
+def userAddPlaylist(changes, original):
+
+    # If there is no work to do, return.
+
+    if changes.get("user_add_playlist") is None:
+        return original
 
     for entry in changes["user_add_playlist"]:
 
@@ -170,9 +195,13 @@ def userAddPlaylist(changes, original, valid_playlists):
         # we would need a check for wrapping.
         # We also ignore 'holes' due to removals.
 
-        valid_playlists.sort(reverse=True)
+        highest = 1
 
-        highest = int(valid_playlists[0]) + 1
+        if original.get("playlists") is not None:
+            valid_playlists = getCurrentList(original, "playlists")
+            valid_playlists.sort(reverse=True)
+
+            highest = int(valid_playlists[0]) + 1
 
         entry_to_add = entry
         entry_to_add["id"] = str(highest)
@@ -212,9 +241,10 @@ def main():
 
         # Now add the new playlists.
 
-        original = userAddPlaylist(changes, original, valid_playlists)
+        original = userAddPlaylist(changes, original)
 
         # Open the output file, dump the resulting JSON to this file.
+
         with open(output_file, "w") as fo:
             json.dump(original, fo, sort_keys=True, indent=4)
 

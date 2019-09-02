@@ -35,7 +35,8 @@ In this example from mixtape.json, the playlist id is 1.
 ``````
 
 - playlist_add_song: An array of objects. Each object consists of a playlist_id, and a song_id. An entry in this 
-section is a request to add the song represented by song_id to the playlist represented by playlist_id. 
+section is a request to add the song represented by song_id to the playlist represented by playlist_id. Note that
+a song may be added to a playlist multiple times - maybe it is a really good song...
 In this example from mixtape.json, the song id is 1.
 
 ```  
@@ -64,7 +65,7 @@ In this example from mixtape.json, the user id is 1.
 ##### Example changes-file
 This project includes the ```mixtape-changes.json``` file. This file is included as an example of the 
 changes-file format. The file name for the changes-file used with this app is defined by the user - use 
-whatever changes-file name you'd like..
+whatever changes-file name you'd like.
 
 This example removes playlist 3, adds song 1 to playlist 1, and adds a new playlist for user 1. 
 We have specified two songs for user 1's new playlist: song 1 and song 8.
