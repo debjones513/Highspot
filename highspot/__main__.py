@@ -2,9 +2,11 @@ import sys
 import argparse
 import json
 
+
 INVALID_PLAYLIST_DATA_STR = "The change data is not coherent. For example you are removing a playlist while also trying to add a song to that same playlist, or referencing a playlist that does not exist, etc."
 INVALID_SONG_DATA_STR = "The change data is not coherent. You are add a song to a new or existing playlist, and that song does not exist."
 INVALID_USER_DATA_STR = "The change data is not coherent. You are referencing a user in the change file that does not exist."
+
 
 class PlaylistValidationError(Exception):
    """Raised when the playlist-remove and playlist-add-song changes are not coherent, or when a non-existent playlist is referenced."""
@@ -17,6 +19,7 @@ class SongValidationError(Exception):
 class UserValidationError(Exception):
    """Raised when the user-add-playlist changes  reference a non-existent song."""
    pass
+
 
 def getArgs():
 
@@ -39,15 +42,14 @@ def setup_working_lists_from_changes_file(changes):
 
     for obj in changes["playlist_add_song"]:
         playlists_for_add_song.append(obj["playlist_id"])
-
-    for obj in changes["playlist_add_song"]:
         change_list_songs.append(obj["song_id"])
 
     for obj in changes["user_add_playlist"]:
-        change_list_songs.append(obj["song_ids"])
         change_list_users.append(obj["user_id"])
+        change_list_songs.extend(obj["song_ids"])
 
     return playlists_for_add_song, changes["playlist_remove"], change_list_songs, change_list_users
+
 
 def setup_working_lists_from_original_file(original):
 
@@ -65,6 +67,7 @@ def setup_working_lists_from_original_file(original):
         valid_users.append(obj["id"])
 
     return valid_playlists, valid_songs, valid_users
+
 
 def validate_change_data(changes, original):
 
@@ -104,14 +107,16 @@ def validate_change_data(changes, original):
 
     return playlists_for_add_song, playlists_to_be_removed, valid_playlists
 
+
 def playlistUpdates(playlists_for_add_song, playlists_to_be_removed, changes, original):
 
-    # We are creating a new updated playlist
+    # We are creating a new updated playlist.
+
     updated_playlists =[]
 
     # Walk through the existing playlists and do the remove and update work.
-    # We make one pass through which is efficient - the original file could be quite large (many entries), while we expect
-    # the changes file to be much smaller (few entries).
+    # We make one pass through which is efficient - the original file could be quite large (many entries),
+    # while we expect the changes file to be much smaller (few entries).
 
     for pl in original["playlists"]:
 
@@ -121,14 +126,10 @@ def playlistUpdates(playlists_for_add_song, playlists_to_be_removed, changes, or
             continue
 
         # The playlist still exists - if we need to add any songs to it, do that now.
-        # Initialize the updated list of songs to to current list of songs.
-
-        updated_songs = pl["song_ids"]
-
-        # Now do any add-song operation specified in the changes file.
 
         # Add-song could be add-songs (pl.) with a change to the JSON (array rather than single value).
-        # The way it is now, you could add 2 songs to 1 playlist, by creating an entry for each song in the changes file.
+        # The way it is now, you could add 2 songs to 1 playlist, by creating an entry for each song in the
+        # changes file.
         # The instructions said 'Add an existing song to an existing playlist.' - implies singular, for production code,
         # I would double check, but this is an exercise.
 
@@ -138,15 +139,15 @@ def playlistUpdates(playlists_for_add_song, playlists_to_be_removed, changes, or
             # Worst case runtime approaches n^2, where n is the number of playlists, if we are changing every playlist.
             # As above, the assumption is that the changes file is usually a fraction of the size of the original file,
             # which means runtime is more like constant * n.
-            # If we knew the real world data would approach n^2, we would explore log base 2 alternative.
+            # If we knew the real world data would approach n^2, we would explore a log base 2 alternative.
 
             for entry in changes["playlist_add_song"]:
                 if pl["id"] == entry["playlist_id"]:
-                    updated_songs.append(entry["song_id"])
+                    pl["song_ids"].append(entry["song_id"])
 
-            # Set the original file's entry to the updated song list.
+            # Sort the original file's song list.
 
-            pl["song_ids"] = updated_songs
+            pl["song_ids"].sort()
 
         # Add this playlist to our updated list.
 
@@ -158,9 +159,10 @@ def playlistUpdates(playlists_for_add_song, playlists_to_be_removed, changes, or
 
     return original
 
+
 def userAddPlaylist(changes, original, valid_playlists):
 
-    for c in changes["user_add_playlist"]:
+    for entry in changes["user_add_playlist"]:
 
         # Find the highest value for a playlist id and increment to get the next value.
 
@@ -170,14 +172,15 @@ def userAddPlaylist(changes, original, valid_playlists):
 
         valid_playlists.sort(reverse=True)
 
-        highest = valid_playlists[0] + 1
+        highest = int(valid_playlists[0]) + 1
 
-        entry_to_add = c
-        entry_to_add["id"] = highest
+        entry_to_add = entry
+        entry_to_add["id"] = str(highest)
 
         original["playlists"].append(entry_to_add)
 
     return original
+
 
 def main():
 
@@ -223,7 +226,6 @@ def main():
 
     except UserValidationError:
         print(INVALID_USER_DATA_STR)
-
 
 
 if __name__ == '__main__':
