@@ -1,6 +1,8 @@
 import sys
+import os
 import argparse
 import json
+import shutil
 
 
 INVALID_PLAYLIST_DATA_STR = """FAILED TO RUN: The change data is not coherent. For example you are removing a playlist 
@@ -11,6 +13,10 @@ playlist, and that song does not exist."""
 
 INVALID_USER_DATA_STR = """FAILED TO RUN: The change data is not coherent. You are referencing a user in the change 
 file that does not exist."""
+
+INVALID_SOURCE_FILE_DATA_STR = """UNEXPECTED: The input mixtape.json file is empty."""
+
+INVALID_CHANGES_FILE_DATA_STR = """UNEXPECTED: The input changes-file is empty."""
 
 
 class PlaylistValidationError(Exception):
@@ -26,14 +32,25 @@ class UserValidationError(Exception):
    """Raised when the user-add-playlist changes reference a non-existent song."""
    pass
 
+class EmptySourceValidationError(Exception):
+   """Raised when the input mixtape.json file is empty."""
+   pass
+
+class EmptyChangesValidationError(Exception):
+   """Raised when the input changes-file is empty."""
+   pass
+
 
 def getArgs():
 
     parser = argparse.ArgumentParser(description="Highspot Music App")
 
-    parser.add_argument("input", help="This is the original music data")
-    parser.add_argument("changes", help="This is the metadata representing changes to the original music data")
-    parser.add_argument("output", help="This is the output after applying the changes")
+    parser.add_argument("input",
+                        help="This file contains the original music data")
+    parser.add_argument("changes",
+                        help="This file contains the metadata representing changes to the original music data")
+    parser.add_argument("output",
+                        help="This file contains the output after applying the changes to the original music data")
 
     args = parser.parse_args()
 
@@ -223,6 +240,17 @@ def main():
 
         original_file, changes_file, output_file  = getArgs()
 
+        # If either the original or changes files are empty, just copy original to the output file,
+        # but this needs clarification, see below.
+
+        if not os.path.getsize(original_file):
+            shutil.copyfile(original_file, output_file)
+            raise EmptySourceValidationError
+
+        if not os.path.getsize(changes_file):
+            shutil.copyfile(original_file, output_file)
+            raise EmptyChangesValidationError
+
         # Open the original and changes files and load to local vars.
 
         with open(original_file) as fo:
@@ -250,13 +278,27 @@ def main():
 
     except PlaylistValidationError:
         print(INVALID_PLAYLIST_DATA_STR)
+        exit(1)
 
     except SongValidationError:
         print(INVALID_SONG_DATA_STR)
+        exit(1)
 
     except UserValidationError:
         print(INVALID_USER_DATA_STR)
+        exit(1)
 
+    # What to do with empty files needs clarification - silently succeed or flag as unexpected?
+    # Doing the latter here, but would need clarification for production code.
+
+    except EmptySourceValidationError:
+        print(INVALID_SOURCE_FILE_DATA_STR)
+        exit(1)
+
+    # If called with an empty changes-file, we return success, no changes to apply. Same as above, needs clarification.
+
+    except EmptyChangesValidationError:
+        print(INVALID_CHANGES_FILE_DATA_STR)
 
 if __name__ == '__main__':
     main()

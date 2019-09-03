@@ -14,6 +14,14 @@ Highspot code problem.
 
 All 3 files are formatted as JSON.
 
+An empty input file is flagged as an error, since no operation can be performed, but we do copy the input file to 
+the output file.
+
+If the changes-file is empty, we just copy the input file to the output file and return success. 
+
+**These cases would need more clarification for production code - if both are empty is this a success case? Is an empty
+input file allowed? Is an empty changes file allowed?**
+
 #### Changes-file format
 
 The changes-file is JSON formatted and includes 3 sections: playlist_remove, playlist_add_song, user_add_playlist. 
