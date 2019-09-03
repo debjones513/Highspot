@@ -42,7 +42,7 @@ needs to be updated. This code re-uses a validation list. If we do need to updat
 entries to find the update data. This becomes an n^2 algorithm if every entry in mixtape.json's playlists is being 
 changed (where n is number of playlists). A log base 2 algorithm could be used with sorted data. If the 
 file data is sorted, you could batching through both files in alpha-numeric order, then the look up in changes-file
-is no longer n operations, but 'entires in the batch' operations.
+is no longer n operations, but 'entries in the batch' operations.
 
 I will stop here due to time constaints - interesting problem...
 
